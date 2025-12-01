@@ -22,6 +22,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
   late MobileScannerController controller;
   bool _isScanning = false;
+  bool _isProcessingQR = false;
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
 
@@ -90,7 +91,10 @@ class _QrScanScreenState extends State<QrScanScreen> {
     try {
       await controller.start();
       if (mounted) {
-        setState(() => _isScanning = true);
+        setState(() {
+          _isScanning = true;
+          _isProcessingQR = false;
+        });
       }
     } catch (e) {
       if (!mounted) return;
@@ -113,14 +117,24 @@ class _QrScanScreenState extends State<QrScanScreen> {
     }
   }
 
-  void _handleBarcode(BarcodeCapture capture) {
+  Future<void> _handleBarcode(BarcodeCapture capture) async {
+    if (_isProcessingQR) return;
+    
     final List<Barcode> barcodes = capture.barcodes;
     for (final barcode in barcodes) {
       if (barcode.rawValue != null) {
         final value = barcode.rawValue!;
         if (_isValidAmount(value)) {
-          _showNoteDialog(value);
+          _isProcessingQR = true;
+          await controller.stop();
+          if (mounted) {
+            _showNoteDialog(value);
+          }
+          return;
         } else {
+          _isProcessingQR = true;
+          await controller.stop();
+          if (!mounted) return;
           showCupertinoDialog(
             context: context,
             builder: (context) => CupertinoAlertDialog(
@@ -132,14 +146,31 @@ class _QrScanScreenState extends State<QrScanScreen> {
               actions: [
                 CupertinoDialogAction(
                   isDefaultAction: true,
-                  onPressed: () =>
-                      Navigator.of(context, rootNavigator: true).pop(),
+                  onPressed: () {
+                    Navigator.of(context, rootNavigator: true).pop();
+                    _resumeScanning();
+                  },
                   child: Text('OK', style: AppTheme.headingMedium),
                 ),
               ],
             ),
           );
+          return;
         }
+      }
+    }
+  }
+  
+  Future<void> _resumeScanning() async {
+    if (!_isScanning) return;
+    try {
+      await controller.start();
+      if (mounted) {
+        setState(() => _isProcessingQR = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessingQR = false);
       }
     }
   }
@@ -148,6 +179,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
     _noteController.clear();
     showCupertinoDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => CupertinoAlertDialog(
         title: Text('Add Note', style: AppTheme.headingMedium),
         content: ConstrainedBox(
@@ -175,6 +207,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
             onPressed: () {
               Navigator.pop(context);
               _noteController.clear();
+              _resumeScanning();
             },
           ),
           CupertinoDialogAction(
@@ -205,6 +238,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
     showCupertinoDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => CupertinoAlertDialog(
         title: Text('Receipt', style: AppTheme.bodyLarge),
         content: Text('Amount: $amount'),
@@ -216,8 +250,13 @@ class _QrScanScreenState extends State<QrScanScreen> {
               await feedback.lightImpact();
               if (!mounted) return;
               Navigator.pop(context);
-              setState(() => _isScanning = false);
-              controller.stop();
+              await controller.stop();
+              if (mounted) {
+                setState(() {
+                  _isScanning = false;
+                  _isProcessingQR = false;
+                });
+              }
             },
           ),
         ],
