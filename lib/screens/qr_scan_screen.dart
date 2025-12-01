@@ -39,56 +39,51 @@ class _QrScanScreenState extends State<QrScanScreen> {
     super.dispose();
   }
 
-  Future<void> requestCameraPermission() async {
+  Future<bool> _requestCameraPermission() async {
     var status = await Permission.camera.status;
+    
     if (status.isDenied) {
-      // Request permission
       status = await Permission.camera.request();
-      if (status.isGranted) {
-        // Permission granted, proceed with camera operations
-      } else if (status.isPermanentlyDenied) {
-        // User denied permission permanently, guide them to settings
-        openAppSettings();
-      }
-    } else if (status.isGranted) {
-      // Permission already granted, proceed
-    } else if (status.isPermanentlyDenied) {
-      // User denied permission permanently, guide them to settings
-      openAppSettings();
     }
+    
+    return status.isGranted;
   }
 
   Future<void> _startScanning() async {
-    await requestCameraPermission();
     final feedback = context.read<FeedbackService>();
     await feedback.selectionClick();
-    final status = await Permission.camera.status;
-
-    if (!status.isGranted) {
+    
+    final isGranted = await _requestCameraPermission();
+    
+    if (!isGranted) {
       if (!mounted) return;
-      showCupertinoDialog(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: const Text('Camera Permission'),
-          content: const Text(
-            'Camera permission is required to scan QR codes.',
+      final status = await Permission.camera.status;
+      
+      if (status.isPermanentlyDenied) {
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text('Camera Permission'),
+            content: const Text(
+              'Camera permission is required to scan QR codes. Please enable it in Settings.',
+            ),
+            actions: [
+              CupertinoDialogAction(
+                child: Text('Cancel', style: AppTheme.headingMedium),
+                onPressed: () => Navigator.pop(context),
+              ),
+              CupertinoDialogAction(
+                isDefaultAction: true,
+                child: Text('Settings', style: AppTheme.headingMedium),
+                onPressed: () {
+                  openAppSettings();
+                  Navigator.pop(context);
+                },
+              ),
+            ],
           ),
-          actions: [
-            CupertinoDialogAction(
-              child: Text('Cancel', style: AppTheme.headingMedium),
-              onPressed: () => Navigator.pop(context),
-            ),
-            CupertinoDialogAction(
-              isDefaultAction: true,
-              child: Text('Settings', style: AppTheme.headingMedium),
-              onPressed: () {
-                openAppSettings();
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      );
+        );
+      }
       return;
     }
 
