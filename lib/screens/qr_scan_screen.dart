@@ -39,7 +39,27 @@ class _QrScanScreenState extends State<QrScanScreen> {
     super.dispose();
   }
 
+  Future<void> requestCameraPermission() async {
+    var status = await Permission.camera.status;
+    if (status.isDenied) {
+      // Request permission
+      status = await Permission.camera.request();
+      if (status.isGranted) {
+        // Permission granted, proceed with camera operations
+      } else if (status.isPermanentlyDenied) {
+        // User denied permission permanently, guide them to settings
+        openAppSettings();
+      }
+    } else if (status.isGranted) {
+      // Permission already granted, proceed
+    } else if (status.isPermanentlyDenied) {
+      // User denied permission permanently, guide them to settings
+      openAppSettings();
+    }
+  }
+
   Future<void> _startScanning() async {
+    await requestCameraPermission();
     final feedback = context.read<FeedbackService>();
     await feedback.selectionClick();
     final status = await Permission.camera.status;
