@@ -90,6 +90,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
     try {
       await controller.start();
+      await Future.delayed(const Duration(milliseconds: 300));
       if (mounted) {
         setState(() {
           _isScanning = true;
@@ -100,10 +101,11 @@ class _QrScanScreenState extends State<QrScanScreen> {
       if (!mounted) return;
       showCupertinoDialog(
         context: context,
+        barrierDismissible: false,
         builder: (context) => CupertinoAlertDialog(
           title: Text('Camera Error', style: AppTheme.headingMedium),
           content: Text(
-            'Camera is not available on this device.',
+            'Failed to start camera: ${e.toString()}',
             style: AppTheme.headingMedium,
           ),
           actions: [
@@ -117,52 +119,76 @@ class _QrScanScreenState extends State<QrScanScreen> {
     }
   }
 
-  Future<void> _handleBarcode(BarcodeCapture capture) async {
+  void _handleBarcode(BarcodeCapture capture) {
     if (_isProcessingQR) return;
     
     final List<Barcode> barcodes = capture.barcodes;
     for (final barcode in barcodes) {
       if (barcode.rawValue != null) {
-        final value = barcode.rawValue!;
+        final value = barcode.rawValue!.trim();
+        if (value.isEmpty) return;
+        
         if (_isValidAmount(value)) {
           _isProcessingQR = true;
-          await controller.stop();
-          if (mounted) {
-            _showNoteDialog(value);
-          }
+          _processValidQRCode(value);
           return;
         } else {
           _isProcessingQR = true;
-          await controller.stop();
-          if (!mounted) return;
-          showCupertinoDialog(
-            context: context,
-            builder: (context) => CupertinoAlertDialog(
-              title: Text('Invalid Amount', style: AppTheme.headingMedium),
-              content: Text(
-                'The receipt amount must be a valid number.',
-                style: AppTheme.bodyLarge,
-              ),
-              actions: [
-                CupertinoDialogAction(
-                  isDefaultAction: true,
-                  onPressed: () {
-                    Navigator.of(context, rootNavigator: true).pop();
-                    _resumeScanning();
-                  },
-                  child: Text('OK', style: AppTheme.headingMedium),
-                ),
-              ],
-            ),
-          );
+          _showInvalidAmountDialog();
           return;
         }
       }
     }
   }
   
+  Future<void> _processValidQRCode(String amount) async {
+    try {
+      await controller.stop();
+    } catch (e) {
+      // Ignore errors if controller is already stopped
+    }
+    
+    if (mounted) {
+      _showNoteDialog(amount);
+    }
+  }
+  
+  Future<void> _showInvalidAmountDialog() async {
+    try {
+      await controller.stop();
+    } catch (e) {
+      // Ignore errors if controller is already stopped
+    }
+    
+    if (!mounted) return;
+    showCupertinoDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text('Invalid Amount', style: AppTheme.headingMedium),
+        content: Text(
+          'The receipt amount must be a valid number.',
+          style: AppTheme.bodyLarge,
+        ),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () {
+              Navigator.of(context, rootNavigator: true).pop();
+              _resumeScanning();
+            },
+            child: Text('OK', style: AppTheme.headingMedium),
+          ),
+        ],
+      ),
+    );
+  }
+  
   Future<void> _resumeScanning() async {
     if (!_isScanning) return;
+    
+    await Future.delayed(const Duration(milliseconds: 300));
+    
     try {
       await controller.start();
       if (mounted) {
@@ -358,6 +384,14 @@ class _QrScanScreenState extends State<QrScanScreen> {
                     child: MobileScanner(
                       controller: controller,
                       onDetect: _handleBarcode,
+                      errorBuilder: (context, error, child) {
+                        return Center(
+                          child: Text(
+                            'Camera error: ${error.errorCode}',
+                            style: AppTheme.bodyLarge,
+                          ),
+                        );
+                      },
                     ),
                   ),
                   Padding(
@@ -368,8 +402,17 @@ class _QrScanScreenState extends State<QrScanScreen> {
                         onPressed: () async {
                           final feedback = context.read<FeedbackService>();
                           await feedback.selectionClick();
-                          setState(() => _isScanning = false);
-                          controller.stop();
+                          try {
+                            await controller.stop();
+                          } catch (e) {
+                            // Ignore errors
+                          }
+                          if (mounted) {
+                            setState(() {
+                              _isScanning = false;
+                              _isProcessingQR = false;
+                            });
+                          }
                         },
                         label: 'Stop Scanning',
                       ),
