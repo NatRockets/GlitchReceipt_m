@@ -102,9 +102,11 @@ class SettingsScreen extends StatelessWidget {
                                 trailing: CupertinoSwitch(
                                   value: settings.vibrationEnabled,
                                   onChanged: (value) async {
-                                    final feedback = context
-                                        .read<FeedbackService>();
-                                    await feedback.selectionClick();
+                                    if (value) {
+                                      final feedback = context
+                                          .read<FeedbackService>();
+                                      await feedback.selectionClick();
+                                    }
                                     await settings.setVibrationEnabled(value);
                                   },
                                 ),

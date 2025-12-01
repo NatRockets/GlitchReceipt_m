@@ -4,6 +4,7 @@ class Receipt {
   final DateTime scannedAt;
   final String? note;
   final String? glitchArtId;
+  final String? qrContent;
 
   Receipt({
     required this.id,
@@ -11,6 +12,7 @@ class Receipt {
     required this.scannedAt,
     this.note,
     this.glitchArtId,
+    this.qrContent,
   });
 
   Map<String, dynamic> toJson() {
@@ -20,6 +22,7 @@ class Receipt {
       'scannedAt': scannedAt.toIso8601String(),
       'note': note,
       'glitchArtId': glitchArtId,
+      'qrContent': qrContent,
     };
   }
 
@@ -30,6 +33,7 @@ class Receipt {
       scannedAt: DateTime.parse(json['scannedAt']),
       note: json['note'],
       glitchArtId: json['glitchArtId'],
+      qrContent: json['qrContent'],
     );
   }
 
@@ -39,6 +43,7 @@ class Receipt {
     DateTime? scannedAt,
     String? note,
     String? glitchArtId,
+    String? qrContent,
   }) {
     return Receipt(
       id: id ?? this.id,
@@ -46,6 +51,7 @@ class Receipt {
       scannedAt: scannedAt ?? this.scannedAt,
       note: note ?? this.note,
       glitchArtId: glitchArtId ?? this.glitchArtId,
+      qrContent: qrContent ?? this.qrContent,
     );
   }
 }

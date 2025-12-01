@@ -6,8 +6,9 @@ class GlitchArtDisplay extends CustomPaint {
     super.key,
     required String amount,
     required int seed,
+    String? qrContent,
   }) : super(
-    painter: _GlitchArtPainter(amount: amount, seed: seed),
+    painter: _GlitchArtPainter(amount: amount, seed: seed, qrContent: qrContent),
     size: const Size(256, 256),
   );
 }
@@ -15,12 +16,14 @@ class GlitchArtDisplay extends CustomPaint {
 class _GlitchArtPainter extends CustomPainter {
   final String amount;
   final int seed;
+  final String? qrContent;
 
-  _GlitchArtPainter({required this.amount, required this.seed});
+  _GlitchArtPainter({required this.amount, required this.seed, this.qrContent});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final colors = _extractColorsFromAmount(amount, seed);
+    final sourceData = qrContent ?? amount;
+    final colors = _extractColorsFromAmount(sourceData, seed);
     final random = Random(seed);
 
     final baseColor = Color.fromARGB(
@@ -173,6 +176,6 @@ class _GlitchArtPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GlitchArtPainter oldDelegate) {
-    return oldDelegate.amount != amount || oldDelegate.seed != seed;
+    return oldDelegate.amount != amount || oldDelegate.seed != seed || oldDelegate.qrContent != qrContent;
   }
 }

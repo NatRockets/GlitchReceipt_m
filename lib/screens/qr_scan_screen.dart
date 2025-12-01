@@ -54,7 +54,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
       if (_isValidAmount(scannedCode)) {
         print('[QR Scanner] Valid amount detected: $scannedCode');
-        _showNoteDialog(scannedCode);
+        _showNoteDialog(scannedCode, isFromQr: true);
       } else {
         print('[QR Scanner] Invalid amount: $scannedCode');
         _showInvalidAmountDialog(scannedCode);
@@ -138,7 +138,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
     );
   }
 
-  void _showNoteDialog(String amount) {
+  void _showNoteDialog(String amount, {bool isFromQr = false}) {
     _noteController.clear();
     showCupertinoDialog(
       context: context,
@@ -183,6 +183,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
               _saveReceipt(
                 amount,
                 _noteController.text.isEmpty ? null : _noteController.text,
+                isFromQr,
               );
               _noteController.clear();
             },
@@ -192,11 +193,15 @@ class _QrScanScreenState extends State<QrScanScreen> {
     );
   }
 
-  void _saveReceipt(String amount, [String? note]) {
+  void _saveReceipt(String amount, [String? note, bool isFromQr = false]) {
     if (!mounted) return;
 
     final provider = context.read<ReceiptProvider>();
-    provider.addReceipt(amount, note: note);
+    provider.addReceipt(
+      amount,
+      note: note,
+      qrContent: isFromQr ? amount : null,
+    );
 
     showCupertinoDialog(
       context: context,

@@ -150,6 +150,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
                                   child: GlitchArtDisplay(
                                     amount: glitchArt.amount,
                                     seed: glitchArt.seed,
+                                    qrContent: glitchArt.qrContent,
                                   ),
                                 ),
                               ),

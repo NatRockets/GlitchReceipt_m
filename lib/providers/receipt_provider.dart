@@ -57,12 +57,13 @@ class ReceiptProvider extends ChangeNotifier {
     }
   }
 
-  void addReceipt(String amount, {String? note}) {
+  void addReceipt(String amount, {String? note, String? qrContent}) {
     final receipt = Receipt(
       id: const Uuid().v4(),
       amount: amount,
       scannedAt: DateTime.now(),
       note: note,
+      qrContent: qrContent,
     );
     _receipts.insert(0, receipt);
     _saveIfNeeded();

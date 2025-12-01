@@ -4,6 +4,7 @@ class GlitchArt {
   final String amount;
   final int seed;
   final DateTime generatedAt;
+  final String? qrContent;
 
   GlitchArt({
     required this.id,
@@ -11,6 +12,7 @@ class GlitchArt {
     required this.amount,
     required this.seed,
     required this.generatedAt,
+    this.qrContent,
   });
 
   Map<String, dynamic> toJson() {
@@ -20,6 +22,7 @@ class GlitchArt {
       'amount': amount,
       'seed': seed,
       'generatedAt': generatedAt.toIso8601String(),
+      'qrContent': qrContent,
     };
   }
 
@@ -30,6 +33,7 @@ class GlitchArt {
       amount: json['amount'],
       seed: json['seed'],
       generatedAt: DateTime.parse(json['generatedAt']),
+      qrContent: json['qrContent'],
     );
   }
 }

@@ -60,6 +60,7 @@ class _SavedReceiptsScreenState extends State<SavedReceiptsScreen> {
                   child: GlitchArtDisplay(
                     amount: receipt.amount,
                     seed: currentSeed,
+                    qrContent: receipt.qrContent,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -96,6 +97,7 @@ class _SavedReceiptsScreenState extends State<SavedReceiptsScreen> {
                   amount: receipt.amount,
                   seed: currentSeed,
                   generatedAt: DateTime.now(),
+                  qrContent: receipt.qrContent,
                 );
 
                 await provider.addGlitchArt(glitchArt);

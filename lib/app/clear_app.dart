@@ -88,26 +88,22 @@ class _ClearAppState extends State<ClearApp> {
 
         final storageService = snapshot.data!;
         final settingsProvider = SettingsProvider(storageService);
-        final feedbackService = FeedbackService(
-          soundEnabled: storageService.getSoundEnabled(),
-          vibrationEnabled: storageService.getVibrationEnabled(),
-        );
 
         return MultiProvider(
           providers: [
             Provider<StorageService>(create: (_) => storageService),
-            Provider<FeedbackService>(create: (_) => feedbackService),
             ChangeNotifierProvider(
               create: (_) => ReceiptProvider(storageService),
             ),
             ChangeNotifierProvider(create: (_) => settingsProvider),
+            ProxyProvider<SettingsProvider, FeedbackService>(
+              update: (_, settings, __) => FeedbackService(
+                soundEnabled: settings.soundEnabled,
+                vibrationEnabled: settings.vibrationEnabled,
+              ),
+            ),
           ],
-          child: Consumer<SettingsProvider>(
-            builder: (context, settings, _) {
-              feedbackService.setSoundEnabled(settings.soundEnabled);
-              feedbackService.setVibrationEnabled(settings.vibrationEnabled);
-
-              return CupertinoApp(
+          child: CupertinoApp(
                 debugShowCheckedModeBanner: false,
                 home: CupertinoTabScaffold(
                   backgroundColor: CupertinoColors.transparent,
@@ -144,9 +140,7 @@ class _ClearAppState extends State<ClearApp> {
                     return _TabContentWrapper(child: _buildScreen(index));
                   },
                 ),
-              );
-            },
-          ),
+              ),
         );
       },
     );
