@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:barcode_scan2/barcode_scan2.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:glitch_receipt/providers/receipt_provider.dart';
@@ -20,51 +20,59 @@ class _QrScanScreenState extends State<QrScanScreen> {
     return parsed != null && parsed > 0;
   }
 
-  late MobileScannerController controller;
-  bool _isScanning = false;
-  bool _isProcessingQR = false;
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    controller = MobileScannerController();
-  }
-
-  @override
   void dispose() {
-    controller.dispose();
     _amountController.dispose();
     _noteController.dispose();
     super.dispose();
   }
 
-  Future<bool> _requestCameraPermission() async {
-    var status = await Permission.camera.status;
-    
-    if (status.isDenied) {
-      status = await Permission.camera.request();
-    }
-    
-    return status.isGranted;
-  }
-
   Future<void> _startScanning() async {
-    final feedback = context.read<FeedbackService>();
-    await feedback.selectionClick();
+    print('[QR Scanner] _startScanning called');
     
-    final isGranted = await _requestCameraPermission();
-    
-    if (!isGranted) {
+    try {
+      final feedback = context.read<FeedbackService>();
+      await feedback.selectionClick();
+      print('[QR Scanner] Feedback played');
+
+      print('[QR Scanner] Opening barcode scanner');
+      final result = await BarcodeScanner.scan();
+      print('[QR Scanner] Scan result: $result');
+
       if (!mounted) return;
-      final status = await Permission.camera.status;
+
+      final scannedCode = result.rawContent.trim();
+      print('[QR Scanner] Scanned value: $scannedCode');
+
+      if (scannedCode.isEmpty) {
+        print('[QR Scanner] Empty scan result');
+        return;
+      }
+
+      if (_isValidAmount(scannedCode)) {
+        print('[QR Scanner] Valid amount detected: $scannedCode');
+        _showNoteDialog(scannedCode);
+      } else {
+        print('[QR Scanner] Invalid amount: $scannedCode');
+        _showInvalidAmountDialog(scannedCode);
+      }
+    } catch (e) {
+      print('[QR Scanner] Scan error: $e');
       
-      if (status.isPermanentlyDenied) {
+      if (!mounted) return;
+
+      final errorMessage = e.toString();
+      
+      if (errorMessage.contains('permission')) {
+        print('[QR Scanner] Camera permission denied');
         showCupertinoDialog(
           context: context,
+          barrierDismissible: false,
           builder: (context) => CupertinoAlertDialog(
-            title: const Text('Camera Permission'),
+            title: const Text('Camera Permission Required'),
             content: const Text(
               'Camera permission is required to scan QR codes. Please enable it in Settings.',
             ),
@@ -77,128 +85,57 @@ class _QrScanScreenState extends State<QrScanScreen> {
                 isDefaultAction: true,
                 child: Text('Settings', style: AppTheme.headingMedium),
                 onPressed: () {
-                  openAppSettings();
                   Navigator.pop(context);
+                  openAppSettings();
                 },
               ),
             ],
           ),
         );
-      }
-      return;
-    }
-
-    try {
-      await controller.start();
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (mounted) {
-        setState(() {
-          _isScanning = true;
-          _isProcessingQR = false;
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-      showCupertinoDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => CupertinoAlertDialog(
-          title: Text('Camera Error', style: AppTheme.headingMedium),
-          content: Text(
-            'Failed to start camera: ${e.toString()}',
-            style: AppTheme.headingMedium,
-          ),
-          actions: [
-            CupertinoDialogAction(
-              child: Text('OK', style: AppTheme.headingMedium),
-              onPressed: () => Navigator.pop(context),
+      } else if (errorMessage.contains('cancel') || errorMessage.contains('user')) {
+        print('[QR Scanner] Scan cancelled by user');
+      } else {
+        print('[QR Scanner] Scan error: $errorMessage');
+        showCupertinoDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => CupertinoAlertDialog(
+            title: Text('Scan Error', style: AppTheme.headingMedium),
+            content: Text(
+              'Error scanning QR code: $errorMessage',
+              style: AppTheme.bodyMedium,
             ),
-          ],
-        ),
-      );
-    }
-  }
-
-  void _handleBarcode(BarcodeCapture capture) {
-    if (_isProcessingQR) return;
-    
-    final List<Barcode> barcodes = capture.barcodes;
-    for (final barcode in barcodes) {
-      if (barcode.rawValue != null) {
-        final value = barcode.rawValue!.trim();
-        if (value.isEmpty) return;
-        
-        if (_isValidAmount(value)) {
-          _isProcessingQR = true;
-          _processValidQRCode(value);
-          return;
-        } else {
-          _isProcessingQR = true;
-          _showInvalidAmountDialog();
-          return;
-        }
+            actions: [
+              CupertinoDialogAction(
+                child: Text('OK', style: AppTheme.headingMedium),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
       }
     }
   }
-  
-  Future<void> _processValidQRCode(String amount) async {
-    try {
-      await controller.stop();
-    } catch (e) {
-      // Ignore errors if controller is already stopped
-    }
-    
-    if (mounted) {
-      _showNoteDialog(amount);
-    }
-  }
-  
-  Future<void> _showInvalidAmountDialog() async {
-    try {
-      await controller.stop();
-    } catch (e) {
-      // Ignore errors if controller is already stopped
-    }
-    
-    if (!mounted) return;
+
+  void _showInvalidAmountDialog(String value) {
     showCupertinoDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => CupertinoAlertDialog(
         title: Text('Invalid Amount', style: AppTheme.headingMedium),
         content: Text(
-          'The receipt amount must be a valid number.',
+          'The scanned value "$value" is not a valid amount.\n\nPlease scan a QR code with a numeric value.',
           style: AppTheme.bodyLarge,
         ),
         actions: [
           CupertinoDialogAction(
             isDefaultAction: true,
-            onPressed: () {
-              Navigator.of(context, rootNavigator: true).pop();
-              _resumeScanning();
-            },
+            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
             child: Text('OK', style: AppTheme.headingMedium),
           ),
         ],
       ),
     );
-  }
-  
-  Future<void> _resumeScanning() async {
-    if (!_isScanning) return;
-    
-    await Future.delayed(const Duration(milliseconds: 300));
-    
-    try {
-      await controller.start();
-      if (mounted) {
-        setState(() => _isProcessingQR = false);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isProcessingQR = false);
-      }
-    }
   }
 
   void _showNoteDialog(String amount) {
@@ -233,7 +170,6 @@ class _QrScanScreenState extends State<QrScanScreen> {
             onPressed: () {
               Navigator.pop(context);
               _noteController.clear();
-              _resumeScanning();
             },
           ),
           CupertinoDialogAction(
@@ -266,7 +202,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => CupertinoAlertDialog(
-        title: Text('Receipt', style: AppTheme.bodyLarge),
+        title: Text('Receipt Saved', style: AppTheme.bodyLarge),
         content: Text('Amount: $amount'),
         actions: [
           CupertinoDialogAction(
@@ -276,13 +212,6 @@ class _QrScanScreenState extends State<QrScanScreen> {
               await feedback.lightImpact();
               if (!mounted) return;
               Navigator.pop(context);
-              await controller.stop();
-              if (mounted) {
-                setState(() {
-                  _isScanning = false;
-                  _isProcessingQR = false;
-                });
-              }
             },
           ),
         ],
@@ -369,6 +298,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print('[QR Scanner] build() called');
+    
     return CupertinoPageScaffold(
       backgroundColor: AppTheme.pageScaffoldConfig.backgroundColor,
       navigationBar: CupertinoNavigationBar(
@@ -377,79 +308,36 @@ class _QrScanScreenState extends State<QrScanScreen> {
         middle: const Text('Scan QR Code'),
       ),
       child: SafeArea(
-        child: _isScanning
-            ? Column(
-                children: [
-                  Expanded(
-                    child: MobileScanner(
-                      controller: controller,
-                      onDetect: _handleBarcode,
-                      errorBuilder: (context, error, child) {
-                        return Center(
-                          child: Text(
-                            'Camera error: ${error.errorCode}',
-                            style: AppTheme.bodyLarge,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: AppTheme.paddingLarge,
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ThemedPrimaryButton(
-                        onPressed: () async {
-                          final feedback = context.read<FeedbackService>();
-                          await feedback.selectionClick();
-                          try {
-                            await controller.stop();
-                          } catch (e) {
-                            // Ignore errors
-                          }
-                          if (mounted) {
-                            setState(() {
-                              _isScanning = false;
-                              _isProcessingQR = false;
-                            });
-                          }
-                        },
-                        label: 'Stop Scanning',
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      CupertinoIcons.qrcode,
-                      size: AppTheme.iconSizeLarge,
-                      color: AppTheme.primaryColor,
-                    ),
-                    SizedBox(height: AppTheme.spacingXLarge),
-                    Text('Scan Receipt QR Code', style: AppTheme.headingLarge),
-                    SizedBox(height: AppTheme.spacingHuge),
-                    SizedBox(
-                      width: 200,
-                      child: ThemedPrimaryButton(
-                        onPressed: _startScanning,
-                        label: 'Start Scanning',
-                      ),
-                    ),
-                    SizedBox(height: AppTheme.spacingLarge),
-                    SizedBox(
-                      width: 200,
-                      child: ThemedSecondaryButton(
-                        onPressed: _showManualInputDialog,
-                        label: 'Enter Amount Manually',
-                      ),
-                    ),
-                  ],
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                CupertinoIcons.qrcode,
+                size: AppTheme.iconSizeLarge,
+                color: AppTheme.primaryColor,
+              ),
+              SizedBox(height: AppTheme.spacingXLarge),
+              Text('Scan Receipt QR Code', style: AppTheme.headingLarge),
+              SizedBox(height: AppTheme.spacingHuge),
+              SizedBox(
+                width: 200,
+                child: ThemedPrimaryButton(
+                  onPressed: _startScanning,
+                  label: 'Start Scanning',
                 ),
               ),
+              SizedBox(height: AppTheme.spacingLarge),
+              SizedBox(
+                width: 200,
+                child: ThemedSecondaryButton(
+                  onPressed: _showManualInputDialog,
+                  label: 'Enter Amount Manually',
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

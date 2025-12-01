@@ -29,14 +29,47 @@ class _ClearAppState extends State<ClearApp> {
   }
 
   Future<StorageService> _initialize() async {
-    await _requestCameraPermission();
-    final storageService = StorageService();
-    await storageService.init();
-    return storageService;
+    print('[App Init] Starting app initialization');
+    try {
+      print('[App Init] Requesting camera permission');
+      await _requestCameraPermission();
+      print('[App Init] Camera permission completed');
+      
+      print('[App Init] Initializing storage service');
+      final storageService = StorageService();
+      await storageService.init();
+      print('[App Init] Storage service initialized successfully');
+      return storageService;
+    } catch (e) {
+      print('[App Init] Error during initialization: $e');
+      rethrow;
+    }
   }
 
   Future<void> _requestCameraPermission() async {
-    await Permission.camera.request();
+    try {
+      print('[Camera Permission] Checking camera permission status');
+      var status = await Permission.camera.status;
+      print('[Camera Permission] Current status: $status');
+      print('[Camera Permission] isDenied: ${status.isDenied}, isDenied: ${status.isDenied}, isPermanentlyDenied: ${status.isPermanentlyDenied}');
+      
+      if (status.isDenied) {
+        print('[Camera Permission] Permission is denied, requesting...');
+        status = await Permission.camera.request();
+        print('[Camera Permission] Permission request result: $status');
+      } else if (status.isGranted) {
+        print('[Camera Permission] Permission already granted');
+      } else if (status.isPermanentlyDenied) {
+        print('[Camera Permission] Permission permanently denied by user');
+      } else {
+        print('[Camera Permission] Unknown permission status: $status');
+      }
+      
+      print('[Camera Permission] Final status - isGranted: ${status.isGranted}');
+    } catch (e) {
+      print('[Camera Permission] Error requesting permission: $e');
+      rethrow;
+    }
   }
 
   @override

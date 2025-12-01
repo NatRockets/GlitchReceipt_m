@@ -47,6 +47,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs access to your camera to scan QR codes</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+    <string>This app needs access to your photo library to select images or save photos.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Microphone permission is required for camera access to be processed correctly. Your audio data is not used by the app.</string>
 </dict>
