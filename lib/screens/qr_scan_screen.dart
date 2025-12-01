@@ -32,7 +32,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
   Future<void> _startScanning() async {
     print('[QR Scanner] _startScanning called');
-    
+
     try {
       final feedback = context.read<FeedbackService>();
       await feedback.selectionClick();
@@ -52,20 +52,15 @@ class _QrScanScreenState extends State<QrScanScreen> {
         return;
       }
 
-      if (_isValidAmount(scannedCode)) {
-        print('[QR Scanner] Valid amount detected: $scannedCode');
-        _showNoteDialog(scannedCode, isFromQr: true);
-      } else {
-        print('[QR Scanner] Invalid amount: $scannedCode');
-        _showInvalidAmountDialog(scannedCode);
-      }
+      print('[QR Scanner] QR code accepted: $scannedCode');
+      _showNoteDialog(scannedCode, isFromQr: true);
     } catch (e) {
       print('[QR Scanner] Scan error: $e');
-      
+
       if (!mounted) return;
 
       final errorMessage = e.toString();
-      
+
       if (errorMessage.contains('permission')) {
         print('[QR Scanner] Camera permission denied');
         showCupertinoDialog(
@@ -92,7 +87,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
             ],
           ),
         );
-      } else if (errorMessage.contains('cancel') || errorMessage.contains('user')) {
+      } else if (errorMessage.contains('cancel') ||
+          errorMessage.contains('user')) {
         print('[QR Scanner] Scan cancelled by user');
       } else {
         print('[QR Scanner] Scan error: $errorMessage');
@@ -115,27 +111,6 @@ class _QrScanScreenState extends State<QrScanScreen> {
         );
       }
     }
-  }
-
-  void _showInvalidAmountDialog(String value) {
-    showCupertinoDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('Invalid Amount', style: AppTheme.headingMedium),
-        content: Text(
-          'The scanned value "$value" is not a valid amount.\n\nPlease scan a QR code with a numeric value.',
-          style: AppTheme.bodyLarge,
-        ),
-        actions: [
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
-            child: Text('OK', style: AppTheme.headingMedium),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showNoteDialog(String amount, {bool isFromQr = false}) {
@@ -304,7 +279,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
   @override
   Widget build(BuildContext context) {
     print('[QR Scanner] build() called');
-    
+
     return CupertinoPageScaffold(
       backgroundColor: AppTheme.pageScaffoldConfig.backgroundColor,
       navigationBar: CupertinoNavigationBar(
