@@ -123,7 +123,7 @@ class SettingsScreen extends StatelessWidget {
                     children: [
                       CupertinoListTile(
                         title: Text('App Version', style: AppTheme.bodyMedium),
-                        trailing: Text('1.0.0', style: AppTheme.bodySmall),
+                        trailing: Text('1.1.0', style: AppTheme.bodySmall),
                       ),
                       CupertinoListTile(
                         title: Text(

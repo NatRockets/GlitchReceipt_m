@@ -2,7 +2,7 @@ require 'xcodeproj'
 
 PROJECT_PATH      = ARGV[0] || 'build/iOS/iOS/Unity-iPhone.xcodeproj'
 MAIN_TARGET_NAME  = ARGV[1] || 'Unity-iPhone'
-EXT_TARGET_NAME   = ARGV[2] || 'notification-service'
+EXT_TARGET_NAME   = ARGV[2] || 'notifications'
 
 puts "Patch Xcodeproj: #{PROJECT_PATH}"
 
